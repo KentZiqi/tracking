@@ -11,12 +11,14 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
-
+from __future__ import division
 import itertools
 import util
 import random
 import busters
 import game
+from IPython import embed
+
 
 class InferenceModule:
     """
@@ -155,10 +157,7 @@ class ExactInference(InferenceModule):
             allPossible[self.getJailPosition()] = 1
         for p in self.legalPositions:
             trueDistance = util.manhattanDistance(p, pacmanPosition)
-            #print("beliefs of " + str(p) + ": "+str(self.beliefs[p]))
-            #print("evidenceProb of " + str(p) + ": "+str(emissionModel[trueDistance]))
             allPossible[p] = self.beliefs[p] * emissionModel[trueDistance]
-            #print("posterior of " + str(p) + ": "+str(allPossible[p]))
         allPossible.normalize()
         self.beliefs = allPossible
 
@@ -241,9 +240,12 @@ class ParticleFilter(InferenceModule):
     def __init__(self, ghostAgent, numParticles=300):
         InferenceModule.__init__(self, ghostAgent);
         self.setNumParticles(numParticles)
+        self.particles = []
+
 
     def setNumParticles(self, numParticles):
         self.numParticles = numParticles
+        self.weights = [1]*self.numParticles
 
 
     def initializeUniformly(self, gameState):
@@ -258,7 +260,11 @@ class ParticleFilter(InferenceModule):
         Storing your particles as a Counter (where there could be an associated
         weight with each position) is incorrect and may produce errors.
         """
-        "*** YOUR CODE HERE ***"
+        particles = []
+        distance = len(self.legalPositions)/self.numParticles
+        for i in range(0,self.numParticles):
+            particles.append(self.legalPositions[int(i*distance)])
+        self.particles = particles;
 
     def observe(self, observation, gameState):
         """
@@ -288,10 +294,20 @@ class ParticleFilter(InferenceModule):
         distance between a particle and Pacman's position.
         """
         noisyDistance = observation
+        if noisyDistance == None:
+            self.particles = [self.getJailPosition()]*self.numParticles
+            return
         emissionModel = busters.getObservationDistribution(noisyDistance)
         pacmanPosition = gameState.getPacmanPosition()
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        allZero = True
+        for i in range(0,self.numParticles):
+            distance = util.manhattanDistance(self.particles[i], pacmanPosition)
+            self.weights[i] = emissionModel[distance]
+            if self.weights[i] != 0:
+                allZero = False
+        if allZero:
+            self.initializeUniformly(gameState)
+
 
     def elapseTime(self, gameState):
         """
@@ -307,8 +323,11 @@ class ParticleFilter(InferenceModule):
         util.sample(Counter object) is a helper method to generate a sample from
         a belief distribution.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        newParticles = []
+        for particle in self.particles:
+            newPosDist = self.getPositionDistribution(self.setGhostPosition(gameState, particle))
+            newParticles.append(util.sample(newPosDist))
+        self.particles = newParticles
 
     def getBeliefDistribution(self):
         """
@@ -317,8 +336,20 @@ class ParticleFilter(InferenceModule):
         essentially converts a list of particles into a belief distribution (a
         Counter object)
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        beliefs = util.Counter()
+        #print(self.weights)
+        #print(self.particles)
+        for i in range(0,self.numParticles):
+            score = self.weights[i]
+            position = self.particles[i]
+            if position not in beliefs:
+                beliefs[position] = 0
+            beliefs[position] += score
+        beliefs.normalize()
+        #print(str(beliefs)+"\n")
+        return beliefs
+
+
 
 class MarginalInference(InferenceModule):
     """
