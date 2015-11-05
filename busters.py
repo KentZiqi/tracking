@@ -337,7 +337,7 @@ class PacmanRules:
         """
         legal = PacmanRules.getLegalActions( state )
         if action not in legal:
-            raise "Illegal action", action
+            return "Illegal actions"
 
         pacmanState = state.data.agentStates[0]
 
