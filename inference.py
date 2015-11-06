@@ -294,14 +294,14 @@ class ParticleFilter(InferenceModule):
         """
         noisyDistance = observation
         if noisyDistance == None:
-            self.particles = [(self.getJailPosition(),1)]*self.numParticles
+            self.particles = [[self.getJailPosition(),1]]*self.numParticles
             return
         emissionModel = busters.getObservationDistribution(noisyDistance)
         pacmanPosition = gameState.getPacmanPosition()
         allZero = True
         for particle in self.particles:
             distance = util.manhattanDistance(particle[0], pacmanPosition)
-            particle[1] = emissionModel[distance]
+            particle[1] = particle[1] * emissionModel[distance]
             if particle[1] != 0:
                 allZero = False
         if allZero:
@@ -327,6 +327,7 @@ class ParticleFilter(InferenceModule):
             newPosition = util.sample(newPosDist)
             particle[0] = newPosition
 
+
     def getBeliefDistribution(self):
         """
         Return the agent's current belief state, a distribution over ghost
@@ -340,7 +341,6 @@ class ParticleFilter(InferenceModule):
                 beliefs[particle[0]] = 0
             beliefs[particle[0]] += particle[1]
         beliefs.normalize()
-        print(beliefs)
         return beliefs
 
 
