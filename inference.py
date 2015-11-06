@@ -301,12 +301,19 @@ class ParticleFilter(InferenceModule):
         allZero = True
         for particle in self.particles:
             distance = util.manhattanDistance(particle[0], pacmanPosition)
-            particle[1] = particle[1] * emissionModel[distance]
+            particle[1] = emissionModel[distance]
             if particle[1] != 0:
                 allZero = False
         if allZero:
             self.initializeUniformly(gameState)
+        beliefs = self.getBeliefDistribution()
+        self.resample(beliefs)
 
+    def resample(self,beliefs):
+        newParticles = []
+        for i in range(0,self.numParticles):
+            newParticles.append([util.sample(beliefs),1])
+        self.particles = newParticles
 
     def elapseTime(self, gameState):
         """
