@@ -245,7 +245,6 @@ class ParticleFilter(InferenceModule):
 
     def setNumParticles(self, numParticles):
         self.numParticles = numParticles
-        self.weights = [1]*self.numParticles
 
 
     def initializeUniformly(self, gameState):
@@ -263,7 +262,7 @@ class ParticleFilter(InferenceModule):
         particles = []
         distance = len(self.legalPositions)/self.numParticles
         for i in range(0,self.numParticles):
-            particles.append(self.legalPositions[int(i*distance)])
+            particles.append([self.legalPositions[int(i*distance)],1])
         self.particles = particles;
 
     def observe(self, observation, gameState):
@@ -295,15 +294,15 @@ class ParticleFilter(InferenceModule):
         """
         noisyDistance = observation
         if noisyDistance == None:
-            self.particles = [self.getJailPosition()]*self.numParticles
+            self.particles = [(self.getJailPosition(),1)]*self.numParticles
             return
         emissionModel = busters.getObservationDistribution(noisyDistance)
         pacmanPosition = gameState.getPacmanPosition()
         allZero = True
-        for i in range(0,self.numParticles):
-            distance = util.manhattanDistance(self.particles[i], pacmanPosition)
-            self.weights[i] = emissionModel[distance]
-            if self.weights[i] != 0:
+        for particle in self.particles:
+            distance = util.manhattanDistance(particle[0], pacmanPosition)
+            particle[1] = emissionModel[distance]
+            if particle[1] != 0:
                 allZero = False
         if allZero:
             self.initializeUniformly(gameState)
@@ -323,11 +322,10 @@ class ParticleFilter(InferenceModule):
         util.sample(Counter object) is a helper method to generate a sample from
         a belief distribution.
         """
-        newParticles = []
         for particle in self.particles:
-            newPosDist = self.getPositionDistribution(self.setGhostPosition(gameState, particle))
-            newParticles.append(util.sample(newPosDist))
-        self.particles = newParticles
+            newPosDist = self.getPositionDistribution(self.setGhostPosition(gameState, particle[0]))
+            newPosition = util.sample(newPosDist)
+            particle[0] = newPosition
 
     def getBeliefDistribution(self):
         """
@@ -337,16 +335,12 @@ class ParticleFilter(InferenceModule):
         Counter object)
         """
         beliefs = util.Counter()
-        #print(self.weights)
-        #print(self.particles)
-        for i in range(0,self.numParticles):
-            score = self.weights[i]
-            position = self.particles[i]
-            if position not in beliefs:
-                beliefs[position] = 0
-            beliefs[position] += score
+        for particle in self.particles:
+            if particle[0] not in beliefs:
+                beliefs[particle[0]] = 0
+            beliefs[particle[0]] += particle[1]
         beliefs.normalize()
-        #print(str(beliefs)+"\n")
+        print(beliefs)
         return beliefs
 
 
