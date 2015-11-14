@@ -422,7 +422,14 @@ class JointParticleFilter:
         Storing your particles as a Counter (where there could be an associated
         weight with each position) is incorrect and may produce errors.
         """
-        "*** YOUR CODE HERE ***"
+        particles = []
+        jointLegalPositions = list(itertools.product(self.legalPositions, repeat = self.numGhosts))
+        distance = len(jointLegalPositions)/self.numParticles
+        for i in range(self.numParticles):
+            particles.append(jointLegalPositions[int(i*distance)])
+        self.particles = particles
+        self.weights = [1] * self.numParticles
+
 
     def addGhostAgent(self, agent):
         """
@@ -468,8 +475,37 @@ class JointParticleFilter:
         if len(noisyDistances) < self.numGhosts:
             return
         emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
+        # if any ghost is captured, set all the its locations in all particles to jail position
+        for j in range(0,self.numGhosts):
+            noisyDistance = noisyDistances[j]
+            if noisyDistance is None:
+                for i in range(self.numParticles):
+                    self.particles[i] = self.getParticleWithGhostInJail(self.particles[i],j)
+        #refresh the weights
+        allZero = True
+        for i in range(0, self.numParticles):
+            for j in range(0,self.numGhosts):
+                emissionModel = emissionModels[j]
+                location = self.particles[i][j]
+                if location == self.getJailPosition(j):
+                    prob = 1
+                else:
+                    distance = util.manhattanDistance(location,pacmanPosition)
+                    prob = emissionModel[distance]
+                self.weights[i] = self.weights[i] * prob
+            if self.weights[i] >0:
+                allZero = False
+        if allZero:
+            self.initializeParticles()
+        beliefs = self.getBeliefDistribution()
+        self.resample(beliefs)
 
-        "*** YOUR CODE HERE ***"
+    def resample(self,beliefs):
+        newParticles = []
+        for i in range(0,self.numParticles):
+            newParticles.append(util.sample(beliefs))
+        self.particles = newParticles
+        self.weights = [1] * self.numParticles
 
     def getParticleWithGhostInJail(self, particle, ghostIndex):
         """
@@ -536,8 +572,14 @@ class JointParticleFilter:
         self.particles = newParticles
 
     def getBeliefDistribution(self):
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        beliefs = util.Counter()
+        for i in range(0,self.numParticles):
+            particle = self.particles[i]
+            if particle not in beliefs:
+                beliefs[particle] = 0
+            beliefs[particle] += self.weights[i]
+        beliefs.normalize()
+        return beliefs
 
 # One JointInference module is shared globally across instances of MarginalInference
 jointInference = JointParticleFilter()
