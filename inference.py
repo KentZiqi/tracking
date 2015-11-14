@@ -471,10 +471,12 @@ class JointParticleFilter:
         if len(noisyDistances) < self.numGhosts:
             return
         emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
+        ghostsInJail = []
         for i in range(self.numGhosts):
             noisyDistance = noisyDistances[i]
             if noisyDistance is None:
                 self.particles = [[self.getParticleWithGhostInJail(particle[0], i), particle[1]] for particle in self.particles]
+                ghostsInJail.append(i)
                 #import ipdb; ipdb.set_trace()
                 #return
         allZero = True
@@ -490,6 +492,17 @@ class JointParticleFilter:
         if allZero:
             print "all zero"
             self.initializeParticles()
+            for i in ghostsInJail:
+                self.particles = [[self.getParticleWithGhostInJail(particle[0], i), particle[1]] for particle in self.particles]
+            for particle in self.particles:
+                particle[1] = 1
+                for i in range(self.numGhosts):
+                    if i in ghostsInJail:
+                        continue
+                    distance = util.manhattanDistance(particle[0][i], pacmanPosition)
+                    emissionModel = emissionModels[i]
+                    particle[1] = particle[1] * emissionModel[distance]
+            #import ipdb; ipdb.set_trace()
         beliefs = self.getBeliefDistribution()
         self.resample(beliefs)
 
